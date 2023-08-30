@@ -1,0 +1,18 @@
+#
+# Protein solvated by water and ions
+#
+
+tolerance 2.0
+
+structure __MODEL__.pdb
+  number 1
+  fixed 0. 0. 0. 0. 0. 0.
+  centerofmass
+end structure
+
+structure water.pdb
+  number __NWAT__
+  inside sphere 0. 0. 0. __RADIUS__.
+end structure
+
+output __OUTFILE__.pdb
