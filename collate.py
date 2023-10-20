@@ -1,7 +1,12 @@
 import os
 import pandas as pd
+import argparse
 
-fname_key = 'wireInfo_cutoff5_new'
+parser = argparse.ArgumentParser()
+parser.add_argument('--cutoff', type=int)
+args = parser.parse_args()
+
+fname_key = f'wireInfo_cutoff{args.cutoff}_new'
 dirs = [d for d in os.scandir() if 'ases' in d.name]
 contents = [f for dir in dirs for f in os.scandir(dir)]
 data_files = [f for f in contents if fname_key in f.name]
@@ -36,4 +41,4 @@ for file in data_files:
     mega['Filename'].append(name)
 
 df = pd.DataFrame(mega)
-df.to_csv("main_out_cutoff5.csv")
+df.to_csv(f"main_out_cutoff{args.cutoff}.csv")
