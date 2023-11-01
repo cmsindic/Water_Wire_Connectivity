@@ -51,6 +51,13 @@ solvate_all_{linux/windows}.py
     that have not already been solvated. 
 
 
+batch_run_analysis.py (controller)
+
+    Runs analyze_wires.py on all directories ending
+    in "ases"... assumes that input pdb files are 
+    grouped by class in accordingly named directories
+
+
 analyze_wires.py
 
     This program takes pdb files {ID}_solvated.pdb 
