@@ -21,15 +21,21 @@ directory to be used as a template for its
 output.
 """
 
-files = []
-for dir in os.scandir():
+def process(line):
+    ''' Convert a csv row, as a string,
+    to a list of values.
+    '''
+    fluff = ('[', ']', '(', ')', '\n', '\"')
+    for char in fluff:
+        line = line.replace(char, '')
+    return line.split(',')
 
-    if not 'ases' in dir.name:
-        continue
-
-    for file in os.scandir(dir):
-        if '.csv' in file.name:
-            files.append(file)
+# Get all csv files in directories containing PDBs
+# Assumes PDBs are stored in directories by class
+# of the enzymes, and thus has names *ases.
+dirs = [d for d in os.scandir() if "ases" in d.name]
+all_files = [f for d in dirs for f in os.scandir(d)]
+files = [f for f in all_files if ".csv" in f.name]
 
 # Make a dict of dicts.
 # Each dict contains the values critical to 
@@ -37,20 +43,11 @@ for dir in os.scandir():
 # fill a copy of model.inp with data.
 model_dict = {}
 for file in files:
-   
-    lines = []
+    
+    # Get lines from csv
     with open(file,'r') as f:
-        for i,line in enumerate(f):
-            if i > 0:
-                lines.append(line)
-
-    for i,line in enumerate(lines):
-        for t in ('[', ']',
-                  '(', ')',
-                  '\n', "\"",):
-            line = line.replace(t,'')
-        line = line.split(',')
-        lines[i] = line
+        # Ignore header row in csv 
+        header, *lines = [process(l) for l in f]
     
     if len(lines) == 0:
         print(f"File {file.path} is empty.")
@@ -60,32 +57,33 @@ for file in files:
         
     # Directory is the first row and 
     # second column in the csv file.
-    dir = lines[0][1]
+    direct = lines[0][1]
     del lines[0]
     
     # Dict of csv values 
-    d = {}
-    for line in lines:
-        d[line[0]] = int(float(line[1]))
+    d = {l[0]: int(float(l[1])) for l in lines}
     
-    # Model and Path differ in that the
+    # Model and path differ in that the
     # latter contains the file extension.
     model = file.name[:-4]
-    d['Model'] = os.path.join(dir, model)
+    path = os.path.join(direct, model)
+    d['Model'] = os.path.join(direct, model)
     d['Outfile'] = path + '_solvated'
     d['Path'] = file.path
-
+    
+    # Add the dict to the dict of models' vals
+    # indexed by the model name of each.
     model_dict[model] = d
 
 
-with open('model.inp','r') as f:
+with open('model.inp', 'r') as f:
     standard_model = [l for l in f]
     standard_model = ''.join(standard_model)
 
 
-# First column in this matrix are the placeholder
-# values in standard_model for the actual values in 
-# ./*ases/*.csv
+# First column in this matrix contains the 
+# placeholder values in standard_model (model.inp)
+# for the actual values in ./*ases/*.csv.
 # The second column contains the keys to the dict
 # containing those values as they were parsed from 
 # each csv file.

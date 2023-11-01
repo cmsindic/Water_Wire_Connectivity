@@ -79,9 +79,9 @@ for file in pdbs:
     # Remember, file is actually file.path
     newfile = file.replace('.pdb', '.csv')
 
-    # Uncomment if overwriting output is desired #
-    '''if os.path.exists(newfile):
-        continue'''
+    # Uncomment to skip files that have been processed
+    if os.path.exists(newfile):
+        continue
     
     # Parse the PDB file
     parser = PDBParser(QUIET=True)
@@ -117,7 +117,6 @@ for file in pdbs:
             elements.append(atom.element)
             coords_list.append(atom.coord)
 
-
     radii = [get_radius(e) for e in elements]
     
     # Skip files if any elements in them are unparsable
@@ -128,28 +127,30 @@ for file in pdbs:
     volumes = (rad_to_vol(r) for r in radii)
     existing_volume = sum(volumes)
 
+    coords_list = np.array(coords_list)
+    # Get coords of enzyme, box extremum
+    mins, maxes = zip(*[(min(x), max(x)) for x in coords_list.T])
+
+    # Get a decent solvation sphere radius
+    middle = np.array(
+                      np.array(mins) +
+                     (np.array(maxes) - np.array(mins)) / 2
+        )
+    deviations = np.linalg.norm(middle - coords_list, axis=1)
+    radius = int(max(deviations) + BUFFER)
+
+
+    #### Create the csv file ####
+    
+    # Done in try/except to avoid killing the
+    # process when one file causes an error. 
     try:
-
-        coords_list = np.array(coords_list)
-        # Get coords of enzyme, box extremum
-        mins, maxes = zip(*[(min(x), max(x)) for x in coords_list.T])
-
-        # Get a decent solvation sphere radius
-        middle = np.array(
-                          np.array(mins) +
-                         (np.array(maxes) - np.array(mins)) / 2
-            )
-        deviations = np.linalg.norm(middle - coords_list, axis=1)
-        radius = int(max(deviations) + BUFFER)
-
-        # Create the csv file
-        dir, name = os.path.split(file)[0]
+        dir, name = os.path.split(file)
         enz_volume = round(existing_volume, 2)
         total_volume = (4/3) * np.pi * radius**3
         water_volume = round(total_volume - enz_volume, 2)
         number_of_water = int(water_volume * WATER_PER_A3)
 
-        
         pdb_info = {
             'Directory':dir,
             'Enzyme Volume':enz_volume,
@@ -162,6 +163,11 @@ for file in pdbs:
         df = pd.DataFrame.from_dict(pdb_info, orient='index')
         df.to_csv(newfile)
         print(f"{name} finished processing")
-        
-    except:
-        print('No COORDS FOR', file)
+     
+    except Exception as e:
+        print()
+        print("Encountered error while processing", file)
+        print(e)
+        print("Continuing")
+        print()
+        continue

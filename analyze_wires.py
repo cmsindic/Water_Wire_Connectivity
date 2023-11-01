@@ -44,18 +44,17 @@ to a file in the target directory,
 """
 
 p = argparse.ArgumentParser()
-p.add_argument('--dir', 
-                description="Directory containing input files.")           
+p.add_argument('--dir', type=str,
+               help="Directory containing input files.")           
 p.add_argument('--cutoff', type=int,
-               description="Cutoff for clustering.")           
+               help="Cutoff for clustering.")           
 bd = "Include substrate binding sites at AS targets"               
 p.add_argument('--binding', 
                action='store_true',
-               description=bd)
-               
+               help=bd)  
 args = p.parse_args()
 
-dir = args.dir
+DIR = args.dir
 CUTOFF = float(args.cutoff)
 
 
@@ -64,15 +63,15 @@ class PDB_Object():
         self.file = file
         self.name = file.name
         name, ext = file.name.split('.')
-        self.id = name[:4]
-        self.no_as_file = dir + '/' + self.id + '.no_info'
-        self.no_solv_file = dir + '/' + self.id + '.no_solv'
+        self.ID = name[:4]
+        self.no_as_file = DIR + '/' + self.ID + '.no_info'
+        self.no_solv_file = DIR + '/' + self.ID + '.no_solv'
 
     def get_residues(self):
         ''' Get all residues in the PDB.
         '''
         parser = PDBParser(QUIET=True)
-        struct = parser.get_structure(self.id, self.file)
+        struct = parser.get_structure(self.ID, self.file)
         self.residues = [r for r in struct.get_residues()]
 
     def get_rcsb_tree(self):
@@ -80,8 +79,8 @@ class PDB_Object():
         '''
         parser = etree.HTMLParser()
         base_rcsb_url = 'https://www.rcsb.org/structure/'
-        url = base_rcsb_url + self.id
-        print(url)
+        url = base_rcsb_url + self.ID
+        print("RCSB URL:", url)
         page = requests.get(url)
         html = page.content.decode("utf-8")
         return etree.parse(StringIO(html), parser=parser)
@@ -171,8 +170,8 @@ class PDB_Object():
         ''' Return path of output file to make.
         '''
         outfile_template = '{}_wireInfo_cutoff{}_new.csv'
-        outfile = outfile_template.format(self.id, int(CUTOFF))
-        return os.path.join(dir, outfile)
+        outfile = outfile_template.format(self.ID, int(CUTOFF))
+        return os.path.join(DIR, outfile)
     
     def has_outfile(self):
         return os.path.exists(self.get_outfile_path())
@@ -229,15 +228,17 @@ def pdb_solvated(file):
 
 
 # Get viable pdb files for testing. These are solvated by packmol.
-pdbs_in_dir = [f for f in os.scandir(dir) if pdb_solvated(f)]
+pdbs_in_dir = [f for f in os.scandir(DIR) if pdb_solvated(f)]
 pdb_files = [PDB_Object(f) for f in pdbs_in_dir]
 pdb_files = [f for f in pdb_files if not f.has_as_file()]
 pdb_files = [f for f in pdb_files if not f.has_outfile()]
 
 # Main operation on each pdb file
 for pdb in pdb_files:
+
+    print()
+    print("Processing", pdb.ID)
     t1 = time()
-    print(pdb.id)
 
     if not pdb.check_for_uniprot_id():
         pdb.make_no_as_file()
@@ -307,6 +308,6 @@ for pdb in pdb_files:
     print({keys[i]:values[i] for i in range(len(keys))})
     df = pd.DataFrame(keys, values)
     df.to_csv(pdb.get_outfile_path())
-    print(time()-t1)
+    print("Processing time:", time()-t1)
 
     del pdb
